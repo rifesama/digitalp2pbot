@@ -1,0 +1,8 @@
+{
+  "require": "ts-node/register",
+  "spec": "tests/**/*.ts",
+  "extension": ["ts"],
+  "watch-files": ["src/**/*.ts", "test/**/*.ts"],
+  "watch-ignore": ["node_modules"],
+  "timeout": 50000
+}

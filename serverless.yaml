@@ -1,0 +1,78 @@
+service: digitalp2pbot
+
+plugins:
+  - serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  environment:
+    BOT_TOKEN: ${BOT_TOKEN}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: 'arn:aws:logs:*:*:*'
+
+functions:
+  dispatcher:
+    handler: dist/commands/handler.main
+    timeout: 30
+    role: LambdaExecutionRole
+    events:
+      - http:
+          path: webhook
+          method: post
+          cors: true
+  startCommand:
+    role: LambdaExecutionRole
+    handler: dist/commands/start/handler.main
+    timeout: 30
+  infoCommand:
+    role: LambdaExecutionRole
+    timeout: 30
+    handler: dist/commands/info/handler.main
+
+resources:
+  Resources:
+    DigitalP2PBotApiGateway:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: DigitalP2PBotApi
+        Description: API Gateway for Digital P2P Bot Dispatcher
+    LambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        Policies:
+          - PolicyName: myLambdaPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: 'Allow'
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource: '*'
+
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: 'AllowLambdaServiceToAssumeRole'
+              Effect: 'Allow'
+              Action:
+                - 'sts:AssumeRole'
+              Principal:
+                Service:
+                  - 'lambda.amazonaws.com'
+                  - 'ssm.amazonaws.com'
+                  - 's3.amazonaws.com'
+
+custom:
+  dotenv:
+    path: .env
+    include:
+      - BOT_TOKEN

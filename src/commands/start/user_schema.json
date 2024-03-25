@@ -1,0 +1,24 @@
+{
+  "properties": {
+    "telegram_id": { "type": "string" },
+    "username": { "type": "string", "nullable": true },
+    "lang": { "type": "string", "default": "en" },
+    "trades_completed": { "type": "uint32", "default": 0 },
+    "total_reviews": { "type": "uint32", "default": 0 },
+    "last_rating": { "type": "uint8", "default": 0 },
+    "total_rating": { "type": "uint8", "default": 0 },
+    "volume_traded": { "type": "uint32", "default": 0 },
+    "admin": { "type": "boolean", "default": false },
+    "banned": { "type": "boolean", "default": false },
+    "show_username": { "type": "boolean", "default": false },
+    "show_volume_traded": { "type": "boolean", "default": false },
+    "disputes": { "type": "uint32", "default": 0 },
+    "default_community_id": { "type": "string", "nullable": true },
+    "created_at": { "type": "string", "nullable": true }
+  },
+  "optionalProperties": {
+    "username": { "type": "string" },
+    "default_community_id": { "type": "string" },
+    "created_at": { "type": "string" }
+  }
+}
