@@ -3,6 +3,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { StatusCodes } from 'http-status-codes';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { User } from './user';
+import logger from './logger';
+import { error } from 'console';
 
 const client = new DynamoDBClient({
   region: 'us-east-1',
@@ -14,24 +16,38 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
+interface lambdaResponse {
+  [key: string]: any;
+}
+
 export const main: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent) => {
   console.log('this is the event', event);
-  const user = new User(docClient);
-  const message = 'Welcome to the bot! How can I assist you today?';
-  //const body = JSON.parse(event.body || '{}');
-  //const chatId = body.message.chat.id;
-
-  await user.create({ telegram_id: '2', username: 'jonthdiaz'});
-
-  const response = {
+  let body: any;
+  const response: lambdaResponse = {
     method: 'sendMessage',
-    chat_id: '1',
-    text: message,
+    chat_id: '',
+    text: '',
   };
-  console.log('send response');
-  return {
-    statusCode: StatusCodes.OK,
-    body: JSON.stringify(response),
-    headers: { 'Content-Type': 'application/json' },
-  };
+  try {
+    const message = 'Welcome to the bot! How can I assist you today?';
+    body = JSON.parse(event.body || '{}');
+    response.chat_id = body.message.chat.id;
+    response.text = message;
+    const user = new User(docClient);
+    await user.create(body);
+    return {
+      statusCode: StatusCodes.OK,
+      body: JSON.stringify(response),
+      headers: { 'Content-Type': 'application/json' },
+    };
+  } catch (err) {
+    logger.error('users.handler', err);
+    response.chat_id = body.message.chat.id;
+    response.text = <string>err;
+    return {
+      statusCode: StatusCodes.BAD_REQUEST,
+      body: JSON.stringify(response),
+      headers: { 'Content-Type': 'application/json' },
+    };
+  }
 };

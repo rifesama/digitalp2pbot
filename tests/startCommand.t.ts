@@ -23,13 +23,18 @@ describe('TestCases for telegram start command', () => {
   afterEach(() => {
     console.log('Cleanup after each test');
   });
-  it('should assert true equals true', () => {
+  it('should assert true equals true', async () => {
     assert.strictEqual(true, true);
   });
 
   it('should create a new user', async () => {
     const event: APIGatewayProxyEvent = mockEvent();
     const context: Context = mockContext();
+    event.body = JSON.stringify({
+      telegramId: '3',
+      userName: 'test2@gmail.com',
+      message: { chat: { id: 1 } },
+    });
     const result: APIGatewayProxyResult = (await main(
       event,
       context,

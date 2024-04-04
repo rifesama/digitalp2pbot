@@ -13,13 +13,13 @@ const createTableParams: CreateTableCommandInput = {
   TableName: 'users',
   AttributeDefinitions: [
     {
-      AttributeName: 'telegram_id',
+      AttributeName: 'telegramId',
       AttributeType: 'S', // 'S' stands for String
     },
   ],
   KeySchema: [
     {
-      AttributeName: 'telegram_id',
+      AttributeName: 'telegramId',
       KeyType: 'HASH', // 'HASH' means partition key
     },
   ],
