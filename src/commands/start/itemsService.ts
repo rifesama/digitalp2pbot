@@ -4,9 +4,15 @@ import {
   GetCommand,
   UpdateCommand,
   QueryCommand,
+  DeleteCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
 import Ajv, { JTDSchemaType, ErrorObject } from 'ajv/dist/jtd';
-import { ValidationError, DatabaseError, ResourceNotFoundError } from './customError';
+import {
+  ValidationError,
+  DatabaseError,
+  ResourceNotFoundError,
+  InvalidQueryParamsError,
+} from './customError';
 import moment from 'moment';
 import { RecordWithTtl } from 'dns';
 import { DynamoCommands, DynamoDBResponseCode } from './dbCommands';
@@ -46,6 +52,7 @@ export class ItemsService extends DynamoCommands {
     await this.validateSchema(data);
     await this.validateData(data);
     data.createdAt = data.updatedAt = moment().format(TIMESTAMP_FORMAT);
+    if (data.dataGroup == undefined) data.dataGroup = 'AllItems';
     const item = await this.putCommand(data);
     return await this.onCreate(item);
   }
@@ -92,15 +99,15 @@ export class ItemsService extends DynamoCommands {
     return { query, fields, sort };
   }
   async load({
-    query,
-    rawQuery,
+    query = {},
+    rawQuery = {},
     fields = [],
     sort,
     _skip = 0,
-    perPage = 100,
+    perPage = 1000,
   }: {
-    query: Record<string, any>;
-    rawQuery: Record<string, any>;
+    query?: Record<string, any>;
+    rawQuery?: Record<string, any>;
     fields?: string[];
     sort?: Record<string, any> | undefined;
     _skip?: number;
@@ -116,12 +123,42 @@ export class ItemsService extends DynamoCommands {
   async onLoad(items: Record<string, any>[]): Promise<Record<string, any>[]> {
     return items;
   }
-  async beforeLoadOne(): Promise<void> {}
-  async loadOne(): Promise<void> {}
-  async onLoadOne(): Promise<void> {}
-  async beforeDeleteSetCriteria(): Promise<void> {}
-  async before_delete(): Promise<void> {}
-  async on_delete(): Promise<void> {}
-  async delete(): Promise<void> {}
-  async count(): Promise<void> {}
+  async beforeLoadOne(
+    query: Record<string, any>,
+    fields: string[] = [],
+  ): Promise<{ query: Record<string, any>; fields: string[] }> {
+    return { query, fields };
+  }
+  async loadOne(query: Record<string, any> = {}, fields?: string[]): Promise<Record<string, any>> {
+    const result = await this.beforeLoadOne(query, fields);
+    query = result.query;
+    fields = result.fields;
+    let item = await this.getCommand(query, fields);
+    if (item != undefined && Object.keys(item).length > 0) {
+      return await this.onLoadOne(item);
+    } else {
+      throw new ResourceNotFoundError('Resource not found');
+    }
+  }
+  async onLoadOne(item: Record<string, any>): Promise<Record<string, any>> {
+    return item;
+  }
+  async beforeDeleteSetCriteria(query: Record<string, any>): Promise<void> {}
+  async beforeDelete(item: Record<string, any>, query: Record<string, any>): Promise<void> {}
+  async onDelete(item: Record<string, any>): Promise<void> {}
+  async delete(query: Record<string, any>={}, logic: boolean = false): Promise<DeleteCommandOutput> {
+    this.beforeDeleteSetCriteria(query);
+    const item = await this.getCommand(query);
+    if (item != undefined && Object.keys(item).length > 0) {
+      this.beforeDelete(item, query);
+      const result = await this.deleteCommand(query)
+      await this.onDelete(item);
+      return result
+    } else {
+      throw new ResourceNotFoundError('Resource not found');
+    }
+  }
+  async count(query: Record<string, any>): Promise<number> {
+    return await this.countCommand(query)
+  }
 }
