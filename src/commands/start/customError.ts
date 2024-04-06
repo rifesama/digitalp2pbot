@@ -42,6 +42,11 @@ class NumberRangeError extends CustomError {
     super(`${valueName} must be between ${min} and ${max}.`);
   }
 }
+class InvalidQueryParamsError extends CustomError {
+  constructor(key: string) {
+    super(`${key} must not empty`);
+  }
+}
 class InvalidSchema extends CustomError {}
 class ValidationError extends CustomError {}
 class DatabaseError extends CustomError {}
@@ -57,4 +62,5 @@ export {
   DatabaseError,
   NumberRangeError,
   ResourceNotFoundError,
+  InvalidQueryParamsError,
 };

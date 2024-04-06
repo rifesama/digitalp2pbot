@@ -4,23 +4,34 @@ import {
   GetCommand,
   UpdateCommand,
   QueryCommand,
-  ScanCommand
+  ScanCommand,
+  DeleteCommand,
+  DeleteCommandOutput,
+  QueryCommandInput
 } from '@aws-sdk/lib-dynamodb';
-import { DatabaseError } from './customError';
+import { DatabaseError, InvalidQueryParamsError } from './customError';
+import exp from 'constants';
 
 type QueryType = Record<string, any>;
 
 type DynamoDBQueryParams = {
-    TableName: string;
-    KeyConditionExpression?: string;
-    FilterExpression?: string;
-    ExpressionAttributeNames: Record<string, any>;
-    ExpressionAttributeValues: Record<string, any>;
-    Limit: number;
-    ScanIndexForward: boolean;
-    ProjectionExpression?: string; // Note: ProjectionExpression is optional
+  TableName: string;
+  KeyConditionExpression?: string;
+  IndexName?: string;
+  FilterExpression?: string;
+  ExpressionAttributeNames?: Record<string, any>;
+  ExpressionAttributeValues?: Record<string, any>;
+  Limit?: number;
+  ScanIndexForward?: boolean;
+  ProjectionExpression?: string; // Note: ProjectionExpression is optional
 };
 
+type DynamoDBGetCommandParams = {
+  TableName: string;
+  Key: Record<string, any>;
+  ProjectionExpression?: string; // Note: ProjectionExpression is optional
+  ExpressionAttributeNames?: Record<string, any>;
+};
 export enum DynamoDBResponseCode {
   Ok = 200,
 }
@@ -32,19 +43,25 @@ export class DynamoCommands {
     this.dbClient = dbClient;
     this.collection = collection;
   }
-  getKeySchemas(): string[]{
-      return ["Id"]
+  getKeySchemas(): string[] {
+    return ['Id'];
   }
-  getKeyExpression(filter: QueryType): {filter: Record<string, any>, keyExpression: Record<string, any>}{
-    const queryCopy = {...filter}
-    const keyExpression = this.getKeySchemas().reduce((acc, field) => {
-    if (queryCopy.hasOwnProperty(field)) {
-        acc[field] = filter[field];
-        delete filter[field]
-    }
-    return acc;
-    }, {} as Record<string, any>);
-    return {filter, keyExpression}
+  getKeyExpression(filter: QueryType): {
+    filter: Record<string, any>;
+    keyExpression: Record<string, any>;
+  } {
+    const queryCopy = { ...filter };
+    const keyExpression = this.getKeySchemas().reduce(
+      (acc, field) => {
+        if (queryCopy.hasOwnProperty(field)) {
+          acc[field] = filter[field];
+          delete filter[field];
+        }
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
+    return { filter, keyExpression };
   }
   async putCommand(data: Record<string, any>): Promise<Record<string, any> | undefined> {
     try {
@@ -65,57 +82,150 @@ export class DynamoCommands {
       throw new DatabaseError(err);
     }
   }
-
-  async getCommand(query: Record<string, any>): Promise<Record<string, any> | undefined> {
+  async deleteCommand(key: Record<string, any>): Promise<DeleteCommandOutput> {
+    if (Object.keys(key).length <= 0) throw new InvalidQueryParamsError('key');
+    const params = {
+      TableName: this.collection,
+      Key: key,
+    };
     try {
-      const command = new GetCommand({ TableName: this.collection, Key: query });
+      return await this.dbClient.send(new DeleteCommand(params));
+    } catch (err: any) {
+      throw new DatabaseError(err);
+    }
+  }
+
+  async getCommand(
+    query: Record<string, any>,
+    fields: string[] = [],
+  ): Promise<Record<string, any> | undefined> {
+    if (Object.keys(query).length <= 0) throw new InvalidQueryParamsError('query');
+    try {
+      const params: DynamoDBGetCommandParams = { TableName: this.collection, Key: query };
+      if (fields.length > 0) {
+        const { projectionExpression, expressionAttributeNames } =
+          this.convertFieldsToDynamoExpression(fields);
+        params.ProjectionExpression = projectionExpression;
+        params.ExpressionAttributeNames = expressionAttributeNames;
+      }
+      const command = new GetCommand(params);
       const { Item } = await this.dbClient.send(command);
       return Item ?? {};
     } catch (err: any) {
       throw new DatabaseError(err);
     }
   }
+  convertFieldsToDynamoExpression(fields: string[]): {
+    projectionExpression: string;
+    expressionAttributeNames: Record<string, any>;
+  } {
+    let projectionExpression = '';
+    const expressionAttributeNames: Record<string, string> = {};
+
+    fields.forEach((field, index) => {
+      const placeholder = `#${field}`;
+
+      projectionExpression += `${index > 0 ? ', ' : ''}${placeholder}`;
+      expressionAttributeNames[placeholder] = field;
+    });
+
+    return { projectionExpression, expressionAttributeNames };
+  }
 
   async query(
     query: Record<string, any>,
     projectionExpression: string[],
-    limit: number,
+    limit: number = 1000,
     sort: Record<string, any>,
   ): Promise<Record<string, any>[]> {
     try {
-      let command;
-      const {filter, keyExpression} = this.getKeyExpression(query)
-      const { keyConditionExpression, filterExpression, expressionAttributeNames, expressionAttributeValues } =
-      this.buildQueryExpression(filter, keyExpression);
+      const { filter, keyExpression } = this.getKeyExpression(query);
+      const {
+        keyConditionExpression,
+        filterExpression,
+        expressionAttributeNames,
+        expressionAttributeValues,
+      } = this.buildQueryExpression(filter, keyExpression);
       const params: DynamoDBQueryParams = {
         TableName: this.collection,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
         Limit: limit,
         ScanIndexForward: sort[0] != -1, //true for ascending, false for descending
       };
-      if(keyConditionExpression){
-          params.KeyConditionExpression = keyConditionExpression
+      if (Object.keys(expressionAttributeNames).length > 0) {
+        params.ExpressionAttributeNames = expressionAttributeNames;
       }
-      if(filterExpression){
-          params.FilterExpression = filterExpression
+      if (Object.keys(expressionAttributeValues).length > 0) {
+        params.ExpressionAttributeValues = expressionAttributeValues;
       }
-      if(projectionExpression.length> 0){
-          params.ProjectionExpression = projectionExpression.join(",")
+      if (Object.keys(keyConditionExpression).length > 0) {
+        params.KeyConditionExpression = keyConditionExpression;
       }
-
-      if(keyConditionExpression){
+      if (Object.keys(filterExpression).length > 0) {
+        params.FilterExpression = filterExpression;
+      }
+      if (projectionExpression.length > 0) {
+        params.ProjectionExpression = projectionExpression.join(',');
+      }
+      if (sort && !keyConditionExpression) {
+        params.IndexName = Object.keys(sort)[0];
+        //if(params.ExpressionAttributeNames!=undefined){
+        //  params.ExpressionAttributeNames["#createdAt"]="createdAt"
+        //}
+      }
+      if (keyConditionExpression) {
         const { Items } = await this.dbClient.send(new QueryCommand(params));
         return Items ?? [];
-      }else{
-          const { Items } = await this.dbClient.send(new ScanCommand(params));
-          return Items ?? [];
+      } else {
+        const { Items } = await this.dbClient.send(new ScanCommand(params));
+        return Items ?? [];
       }
     } catch (err: any) {
       throw new DatabaseError(err);
     }
   }
-  buildQueryExpression(filter: QueryType, keyExpression: Record<string, any>): {
+
+  async countCommand(
+    query: Record<string, any>,
+  ): Promise<number> {
+    try {
+      const { filter, keyExpression } = this.getKeyExpression(query);
+      const {
+        keyConditionExpression,
+        filterExpression,
+        expressionAttributeNames,
+        expressionAttributeValues,
+      } = this.buildQueryExpression(filter, keyExpression);
+      const params: QueryCommandInput = {
+        TableName: this.collection,
+        Select: "COUNT"
+      };
+      if (Object.keys(expressionAttributeNames).length > 0) {
+        params.ExpressionAttributeNames = expressionAttributeNames;
+      }
+      if (Object.keys(expressionAttributeValues).length > 0) {
+        params.ExpressionAttributeValues = expressionAttributeValues;
+      }
+      if (Object.keys(keyConditionExpression).length > 0) {
+        params.KeyConditionExpression = keyConditionExpression;
+      }
+      if (Object.keys(filterExpression).length > 0) {
+        params.FilterExpression = filterExpression;
+      }
+      if (keyConditionExpression) {
+        const { Count } = await this.dbClient.send(new QueryCommand(params));
+        return Count ?? 0;
+      } else {
+        const { Count } = await this.dbClient.send(new ScanCommand(params));
+        return Count ?? 0;
+      }
+    } catch (err: any) {
+      throw new DatabaseError(err);
+    }
+  }
+  buildQueryExpression(
+    filter: QueryType,
+    keyExpression: Record<string, any>,
+  ): {
     keyConditionExpression: string;
     filterExpression: string;
     expressionAttributeNames: Record<string, any>;
@@ -124,7 +234,7 @@ export class DynamoCommands {
     let keyConditionExpression = '';
     let filterExpression = '';
     const expressionAttributeValues: Record<string, any> = {};
-    const expressionAttributeNames: Record<string, any>={}
+    const expressionAttributeNames: Record<string, any> = {};
 
     for (const [key, value] of Object.entries(filter)) {
       const expressionKey = `:${key}`;
@@ -165,6 +275,11 @@ export class DynamoCommands {
     // Remove the last ' and '
     keyConditionExpression = keyConditionExpression.slice(0, -5);
     filterExpression = filterExpression.slice(0, -5);
-    return { keyConditionExpression, filterExpression, expressionAttributeNames, expressionAttributeValues };
+    return {
+      keyConditionExpression,
+      filterExpression,
+      expressionAttributeNames,
+      expressionAttributeValues,
+    };
   }
 }

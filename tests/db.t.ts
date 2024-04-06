@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import assert, { throws } from 'assert';
-import { DynamoCommands } from '../src/commands/start/dbCommands';
+import { DynamoCommands, DynamoDBResponseCode } from '../src/commands/start/dbCommands';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { MockSchema } from './mocks/mockSchema';
@@ -13,6 +13,8 @@ import {
   ValidationError,
   DatabaseError,
   StringLengthError,
+  InvalidQueryParamsError,
+  ResourceNotFoundError,
 } from '../src/commands/start/customError';
 import { sleep } from './utils';
 
@@ -61,6 +63,29 @@ describe('TestCases for DynamoDB commands', () => {
     assert.equal(newRecord.Item?.name, body.name);
     assert.equal(newRecord.Item?.phone, body.phone);
     assert.equal(newRecord.Item?.address, body.address);
+    assert.ok(newRecord.Item?.active);
+  });
+
+  it('should create a record on the database using custom GSI', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+      dataGroup: 'base',
+    };
+    await schema.create(body);
+    const command = new GetCommand({ TableName: collection, Key: { Id: body.Id } });
+    const newRecord = await docClient.send(command);
+    assert.ok(newRecord.$metadata.httpStatusCode);
+    assert.equal(newRecord.Item?.lastName, body.lastName);
+    assert.equal(newRecord.Item?.name, body.name);
+    assert.equal(newRecord.Item?.phone, body.phone);
+    assert.equal(newRecord.Item?.address, body.address);
+    assert.equal(newRecord.Item?.dataGroup, body.dataGroup);
     assert.ok(newRecord.Item?.active);
   });
 
@@ -269,47 +294,457 @@ describe('TestCases for DynamoDB commands', () => {
     const schema = await new MockSchema(docClient, collection);
     let body = {
       Id: faker.string.uuid(),
-      name: "test",
+      name: 'test',
       lastName: faker.person.lastName(),
       phone: faker.phone.number(),
       address: faker.location.streetAddress(),
       active: true,
     };
     await schema.create(body);
-    body.Id=faker.string.uuid()
+    body.Id = faker.string.uuid();
     await schema.create(body);
-    const query = {name: "test"};
+    const query = { name: 'test' };
     const items = await schema.load({ query: query, rawQuery: query });
-    assert.ok(items.length>=1)
+    assert.ok(items.length >= 1);
   });
 
   it('should list all records in the database usin query command', async () => {
     const schema = await new MockSchema(docClient, collection);
     let body = {
       Id: faker.string.uuid(),
-      name: "test",
+      name: 'test',
       lastName: faker.person.lastName(),
       phone: faker.phone.number(),
       address: faker.location.streetAddress(),
       active: true,
     };
     await schema.create(body);
-    body.Id=faker.string.uuid()
+    body.Id = faker.string.uuid();
     await schema.create(body);
-    const query = {name: "test", Id: body.Id};
+    const query = { name: 'test', Id: body.Id };
     const items = await schema.load({ query: query, rawQuery: query });
-    assert.ok(items.length==1)
+    assert.ok(items.length == 1);
   });
 
-  it('should save the record without saving the unknown fields', async () => {
-    assert.strictEqual(true, true);
+  it('should list records and return specifics fields', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    await schema.create(body);
+    const query = { name: 'test', dataGroup: 'AllItems', Id: body.Id };
+    const items = await schema.load({
+      query: query,
+      rawQuery: query,
+      fields: ['createdAt', 'phone', 'lastName'],
+    });
+    assert.ok(items.length == 1);
+    assert.equal(items[0].name, undefined);
+    assert.equal(items[0].phone, body.phone);
+    assert.equal(items[0].lastName, body.lastName);
   });
 
-  it('should raise string length error', async () => {
-    assert.strictEqual(true, true);
+  it('should list records and update the query using before load', async () => {
+    class mock extends MockSchema {
+      async beforeLoad(
+        query: Record<string, any>,
+        rawQuery: Record<string, any>,
+        fields: string[],
+        sort: Record<string, any> = { createdAt: -1 },
+      ): Promise<{ query: Record<string, any>; fields: string[]; sort: Record<string, any> }> {
+        query.name = 'new';
+        return { query, fields, sort };
+      }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    body.name = 'new';
+    await schema.create(body);
+    const items = await schema.load({ query: {}, rawQuery: {} });
+    assert.ok(items.length == 1);
+    assert.equal(items[0].name, 'new');
   });
 
-  it('should raise invalid email error', async () => {
-    assert.strictEqual(true, true);
+  it('should list records and use index createdAt', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    body.name = 'new';
+    await schema.create(body);
+    const items = await schema.load({});
+    assert.ok(items.length == 2);
+  });
+
+  it('should filter without keyExpression and sort by createdAt', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    body.name = 'new';
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    await schema.create(body);
+    const query = { name: 'new' };
+    const items = await schema.load({ query: query, rawQuery: query });
+    assert.ok(items.length == 2);
+  });
+
+  it('should filter using keyExpression and sort by createdAt', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    body.name = 'new';
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    await schema.create(body);
+    const query = { name: 'new', Id: body.Id };
+    const items = await schema.load({ query: query, rawQuery: query });
+    console.log('items', items);
+    assert.ok(items.length == 1);
+  });
+
+  it('should filter using GSI and sort by createdAt', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    body.name = 'new';
+    await schema.create(body);
+    body.Id = faker.string.uuid();
+    await schema.create(body);
+    const query = { name: 'new', dataGroup: 'AllItems' };
+    const items = await schema.load({ query: query, rawQuery: query });
+    console.log('items', items);
+    assert.ok(items.length == 2);
+  });
+  it('should get one record using loadOne method', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const item = await schema.loadOne({ Id: body.Id });
+    assert.equal(item.name, body.name);
+    assert.equal(item.lastName, body.lastName);
+    assert.equal(item.phone, body.phone);
+    assert.equal(item.address, body.address);
+    assert.equal(item.active, body.active);
+  });
+
+  it('should get one record using loadOne and specific fields', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const item = await schema.loadOne({ Id: body.Id }, ['name', 'lastName']);
+    assert.equal(item.name, body.name);
+    assert.equal(item.lastName, body.lastName);
+    assert.equal(item.phone, undefined);
+    assert.equal(item.address, undefined);
+    assert.equal(item.active, undefined);
+  });
+
+  it('should get one record using loadOne and use beforeLoadOne', async () => {
+    class mock extends MockSchema {
+      async beforeLoadOne(
+        query: Record<string, any>,
+        fields: string[] = [],
+      ): Promise<{ query: Record<string, any>; fields: string[] }> {
+        fields = ['name'];
+        query.Id = '123';
+        return { query, fields };
+      }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: '123',
+      name: 'test',
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const item = await schema.loadOne();
+    assert.equal(item.name, body.name);
+    assert.equal(item.lastName, undefined);
+    assert.equal(item.phone, undefined);
+    assert.equal(item.address, undefined);
+    assert.equal(item.active, undefined);
+  });
+
+  it('should get one record using loadOne and use onLoadOne', async () => {
+    class mock extends MockSchema {
+      async onLoadOne(item: Record<string, any>): Promise<Record<string, any>> {
+        item['name'] = 'this is a test';
+        return item;
+      }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: '123',
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const item = await schema.loadOne({ Id: body.Id });
+    assert.equal(item.name, 'this is a test');
+    assert.equal(item.lastName, body.lastName);
+    assert.equal(item.phone, item.phone);
+    assert.equal(item.address, item.address);
+    assert.equal(item.active, item.active);
+  });
+
+  it('should raise the exception when the query sent is empty', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    await assert.rejects(async () => {
+      await schema.loadOne();
+    }, InvalidQueryParamsError);
+  });
+
+  it('should raise the exception resource not found load one', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    await assert.rejects(async () => {
+      await schema.loadOne({ Id: '123773737' });
+    }, ResourceNotFoundError);
+  });
+
+  it('should delete one item using the method delete', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const deleteResult = await schema.delete({Id: body.Id})
+
+    const command = new GetCommand({ TableName: collection, Key: { Id: body.Id } });
+    const {Item} = await docClient.send(command);
+    assert.equal(Item, undefined)
+    assert.equal(deleteResult.$metadata.httpStatusCode, DynamoDBResponseCode.Ok)
+  });
+  it('should delete one item using the method delete and before delete set criteria', async () => {
+    class mock extends MockSchema {
+        async beforeDeleteSetCriteria(query: Record<string, any>): Promise<void> {
+            query.Id="88"
+        }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: "88",
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const deleteResult = await schema.delete()
+    const command = new GetCommand({ TableName: collection, Key: { Id: body.Id } });
+    const {Item} = await docClient.send(command);
+    assert.equal(Item, undefined)
+    assert.equal(deleteResult.$metadata.httpStatusCode, DynamoDBResponseCode.Ok)
+  });
+  it('should delete one item using the methods delete and before delete', async () => {
+    class mock extends MockSchema {
+        async beforeDelete(item:Record<string, any>,query: Record<string, any>): Promise<void> {
+            assert.equal(item.Id, query.Id)
+        }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const deleteResult = await schema.delete({Id: body.Id})
+    const command = new GetCommand({ TableName: collection, Key: { Id: body.Id } });
+    const {Item} = await docClient.send(command);
+    assert.equal(Item, undefined)
+    assert.equal(deleteResult.$metadata.httpStatusCode, DynamoDBResponseCode.Ok)
+  });
+  it('should delete one item using the methods delete and on delete', async () => {
+    class mock extends MockSchema {
+        async onDelete(item:Record<string, any>): Promise<void> {
+            assert.equal(item.active, true)
+        }
+    }
+    const schema = await new mock(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    const deleteResult = await schema.delete({Id: body.Id})
+    const command = new GetCommand({ TableName: collection, Key: { Id: body.Id } });
+    const {Item} = await docClient.send(command);
+    assert.equal(Item, undefined)
+    assert.equal(deleteResult.$metadata.httpStatusCode, DynamoDBResponseCode.Ok)
+  });
+
+  it('should raise invalid query params error when the query param is empty', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+
+    await assert.rejects(async () => {
+        await schema.delete()
+    }, InvalidQueryParamsError);
+  });
+
+  it('should raise resource not found error when the query param is empty', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+
+    await assert.rejects(async () => {
+        await schema.delete({Id: "88"})
+    }, ResourceNotFoundError);
+  });
+
+  it('should count the records using filter expression', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: "count",
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid()
+    await schema.create(body);
+    body.name = "test"
+    body.Id = faker.string.uuid()
+    await schema.create(body);
+    const count = await schema.count({"name": "count"})
+    assert.equal(count, 2)
+
+  });
+
+
+  it('should return the count of all records when the query is empty', async () => {
+    const schema = await new MockSchema(docClient, collection);
+    const body = {
+      Id: faker.string.uuid(),
+      name: "count",
+      lastName: faker.person.lastName(),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      active: true,
+    };
+    await schema.create(body);
+    body.Id = faker.string.uuid()
+    await schema.create(body);
+    body.Id = faker.string.uuid()
+    await schema.create(body);
+    const count = await schema.count({})
+    assert.equal(count, 3)
+
   });
 });
