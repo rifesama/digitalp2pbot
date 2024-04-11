@@ -1,0 +1,11 @@
+service: digitalp2pbot-utils
+
+provider:
+  name: aws
+
+layers:
+  digitalp2pbot-utils:
+    compatibleRuntimes:
+      - 'nodejs20.x'
+    package:
+      artifact: digitalp2pbot-utils.zip

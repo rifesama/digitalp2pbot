@@ -2,6 +2,9 @@ service: digitalp2pbot
 
 plugins:
   - serverless-dotenv-plugin
+  - serverless-esbuild
+  - serverless-latest-layer-version
+  - serverless-offline
 
 provider:
   name: aws
@@ -9,6 +12,8 @@ provider:
   region: us-east-1
   environment:
     BOT_TOKEN: ${BOT_TOKEN}
+  layers:
+    - arn:aws:lambda:${aws:region}:${aws:accountId}:layer:digitalp2pbot-utils:latest
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -19,7 +24,7 @@ provider:
 
 functions:
   dispatcher:
-    handler: dist/commands/handler.main
+    handler: src/handler.main
     timeout: 30
     role: LambdaExecutionRole
     events:
@@ -27,14 +32,16 @@ functions:
           path: webhook
           method: post
           cors: true
+
   startCommand:
     role: LambdaExecutionRole
-    handler: dist/commands/start/handler.main
+    handler: src/start/handler.main
     timeout: 30
+
   infoCommand:
     role: LambdaExecutionRole
     timeout: 30
-    handler: dist/commands/info/handler.main
+    handler: src/info/handler.main
 
 resources:
   Resources:

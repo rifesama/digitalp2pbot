@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 
 export const main: APIGatewayProxyHandler = async event => {
   const message = 'Welcome to the bot! How can I assist you today i am info?';
-  const body = JSON.parse(event.body);
+  const body = JSON.parse(event.body || '{}');
   const chatId = body.message.chat.id;
 
   // Respond back to Telegram

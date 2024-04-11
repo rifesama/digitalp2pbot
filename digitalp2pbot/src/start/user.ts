@@ -1,7 +1,7 @@
 import Ajv, { JTDSchemaType } from 'ajv/dist/jtd';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { ItemsService } from './itemsService';
-import { NumberRangeError, ValueGreaterThanZeroError } from './customError';
+import { ItemsService } from 'digitalp2pbot-utils';
+import { NumberRangeError, ValueGreaterThanZeroError } from 'digitalp2pbot-utils';
 
 export interface userSchemaInterface {
   telegramId: string;

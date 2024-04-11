@@ -10,24 +10,32 @@ import deleteTable from './deleteTable';
 const createTableParams: CreateTableCommandInput = {
   TableName: '',
   AttributeDefinitions: [
-    { AttributeName: 'Id', AttributeType: 'S' },
-    { AttributeName: 'dataGroup', AttributeType: 'S' },
+    { AttributeName: 'PK', AttributeType: 'S' },
+    { AttributeName: 'SK', AttributeType: 'S' },
     {
       AttributeName: 'createdAt',
+      AttributeType: 'S', // 'S' stands for String
+    },
+    {
+      AttributeName: 'updatedAt',
       AttributeType: 'S', // 'S' stands for String
     },
   ],
   KeySchema: [
     {
-      AttributeName: 'Id',
+      AttributeName: 'PK',
       KeyType: 'HASH', // 'HASH' means partition key
+    },
+    {
+      AttributeName: 'SK',
+      KeyType: 'RANGE', // 'HASH' means partition key
     },
   ],
   GlobalSecondaryIndexes: [
     {
       IndexName: 'createdAt',
       KeySchema: [
-        { AttributeName: 'dataGroup', KeyType: 'HASH' }, // Use the same partition key as the main table for GSI
+        { AttributeName: 'PK', KeyType: 'HASH' }, // Use the same partition key as the main table for GSI
         { AttributeName: 'createdAt', KeyType: 'RANGE' }, // Sort key for the GSI
       ],
       Projection: {
@@ -35,8 +43,23 @@ const createTableParams: CreateTableCommandInput = {
       },
       ProvisionedThroughput: {
         // Specify throughput for the GSI
-        ReadCapacityUnits: 5, // Example capacity units
-        WriteCapacityUnits: 5,
+        ReadCapacityUnits: 1, // Example capacity units
+        WriteCapacityUnits: 1,
+      },
+    },
+    {
+      IndexName: 'updatedAt',
+      KeySchema: [
+        { AttributeName: 'PK', KeyType: 'HASH' }, // Use the same partition key as the main table for GSI
+        { AttributeName: 'updatedAt', KeyType: 'RANGE' }, // Sort key for the GSI
+      ],
+      Projection: {
+        ProjectionType: 'ALL', // Include all attributes in the index
+      },
+      ProvisionedThroughput: {
+        // Specify throughput for the GSI
+        ReadCapacityUnits: 1, // Example capacity units
+        WriteCapacityUnits: 1,
       },
     },
   ],

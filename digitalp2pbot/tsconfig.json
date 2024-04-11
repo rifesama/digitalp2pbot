@@ -11,7 +11,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "rootDir": "./src"
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "digitalp2pbot-utils": ["../digitalp2pbot-utils/src/index.ts"]
+    }
   },
   "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules"]
