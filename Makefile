@@ -19,7 +19,4 @@ getWebHook:
 	@http POST https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo -v
 
 deploy:
-	@npm run build
-	@serverless deploy
-
-
+	@npm run deploy

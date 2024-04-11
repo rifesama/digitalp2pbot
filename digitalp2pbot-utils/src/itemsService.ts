@@ -19,6 +19,7 @@ import { DynamoCommands, DynamoDBResponseCode } from './dbCommands';
 
 const ajv = new Ajv({ removeAdditional: true });
 const TIMESTAMP_FORMAT: string = 'YYYY-MM-DDTHH:mm:ssZ';
+export const PER_PAGE: number = 100;
 
 export class ItemsService extends DynamoCommands {
   constructor(dbClient: DynamoDBDocumentClient, collection: string) {
@@ -52,7 +53,6 @@ export class ItemsService extends DynamoCommands {
     await this.validateSchema(data);
     await this.validateData(data);
     data.createdAt = data.updatedAt = moment().format(TIMESTAMP_FORMAT);
-    if (data.dataGroup == undefined) data.dataGroup = 'AllItems';
     const item = await this.putCommand(data);
     return await this.onCreate(item);
   }
@@ -103,8 +103,7 @@ export class ItemsService extends DynamoCommands {
     rawQuery = {},
     fields = [],
     sort,
-    _skip = 0,
-    perPage = 1000,
+    perPage = PER_PAGE,
   }: {
     query?: Record<string, any>;
     rawQuery?: Record<string, any>;
@@ -112,13 +111,13 @@ export class ItemsService extends DynamoCommands {
     sort?: Record<string, any> | undefined;
     _skip?: number;
     perPage?: number;
-  }): Promise<Record<string, any>[]> {
+  }): Promise<{ items: Record<string, any>[]; lastEvaluatedKey: Record<string, any> | undefined }> {
     const result = await this.beforeLoad(query, rawQuery, fields, sort);
     query = result.query;
     fields = result.fields;
     sort = result.sort;
-    const items = await this.query(query, fields, perPage, sort);
-    return await this.onLoad(items ?? []);
+    const { Items, LastEvaluatedKey } = await this.query(query, fields, perPage, sort);
+    return { items: await this.onLoad(Items ?? []), lastEvaluatedKey: LastEvaluatedKey };
   }
   async onLoad(items: Record<string, any>[]): Promise<Record<string, any>[]> {
     return items;
@@ -146,19 +145,22 @@ export class ItemsService extends DynamoCommands {
   async beforeDeleteSetCriteria(query: Record<string, any>): Promise<void> {}
   async beforeDelete(item: Record<string, any>, query: Record<string, any>): Promise<void> {}
   async onDelete(item: Record<string, any>): Promise<void> {}
-  async delete(query: Record<string, any>={}, logic: boolean = false): Promise<DeleteCommandOutput> {
+  async delete(
+    query: Record<string, any> = {},
+    logic: boolean = false,
+  ): Promise<DeleteCommandOutput> {
     this.beforeDeleteSetCriteria(query);
     const item = await this.getCommand(query);
     if (item != undefined && Object.keys(item).length > 0) {
       this.beforeDelete(item, query);
-      const result = await this.deleteCommand(query)
+      const result = await this.deleteCommand(query);
       await this.onDelete(item);
-      return result
+      return result;
     } else {
       throw new ResourceNotFoundError('Resource not found');
     }
   }
   async count(query: Record<string, any>): Promise<number> {
-    return await this.countCommand(query)
+    return await this.countCommand(query);
   }
 }

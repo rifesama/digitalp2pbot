@@ -7,7 +7,7 @@ import {
   ScanCommand,
   DeleteCommand,
   DeleteCommandOutput,
-  QueryCommandInput
+  QueryCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import { DatabaseError, InvalidQueryParamsError } from './customError';
 import exp from 'constants';
@@ -44,7 +44,7 @@ export class DynamoCommands {
     this.collection = collection;
   }
   getKeySchemas(): string[] {
-    return ['Id'];
+    return ['PK', 'SK', 'SK_PREFIX'];
   }
   getKeyExpression(filter: QueryType): {
     filter: Record<string, any>;
@@ -73,7 +73,7 @@ export class DynamoCommands {
       if (result.$metadata.httpStatusCode == DynamoDBResponseCode.Ok) {
         const _getCommand = new GetCommand({
           TableName: this.collection,
-          Key: { Id: data[this.#collectionKeyName] },
+          Key: { PK: data.PK, SK: data.SK },
         });
         const { Item } = await this.dbClient.send(_getCommand);
         return Item;
@@ -135,9 +135,9 @@ export class DynamoCommands {
   async query(
     query: Record<string, any>,
     projectionExpression: string[],
-    limit: number = 1000,
+    limit: number,
     sort: Record<string, any>,
-  ): Promise<Record<string, any>[]> {
+  ): Promise<{ Items: Record<string, any>[]; LastEvaluatedKey: Record<string, any> | undefined }> {
     try {
       const { filter, keyExpression } = this.getKeyExpression(query);
       const {
@@ -173,20 +173,18 @@ export class DynamoCommands {
         //}
       }
       if (keyConditionExpression) {
-        const { Items } = await this.dbClient.send(new QueryCommand(params));
-        return Items ?? [];
+        const { Items, LastEvaluatedKey } = await this.dbClient.send(new QueryCommand(params));
+        return { Items: Items ?? [], LastEvaluatedKey };
       } else {
-        const { Items } = await this.dbClient.send(new ScanCommand(params));
-        return Items ?? [];
+        const { Items, LastEvaluatedKey } = await this.dbClient.send(new ScanCommand(params));
+        return { Items: Items ?? [], LastEvaluatedKey };
       }
     } catch (err: any) {
       throw new DatabaseError(err);
     }
   }
 
-  async countCommand(
-    query: Record<string, any>,
-  ): Promise<number> {
+  async countCommand(query: Record<string, any>): Promise<number> {
     try {
       const { filter, keyExpression } = this.getKeyExpression(query);
       const {
@@ -197,7 +195,7 @@ export class DynamoCommands {
       } = this.buildQueryExpression(filter, keyExpression);
       const params: QueryCommandInput = {
         TableName: this.collection,
-        Select: "COUNT"
+        Select: 'COUNT',
       };
       if (Object.keys(expressionAttributeNames).length > 0) {
         params.ExpressionAttributeNames = expressionAttributeNames;
@@ -262,14 +260,22 @@ export class DynamoCommands {
         // Handle comparison operators
         const operator = Object.keys(value)[0];
         const operand = value[operator];
-        keyConditionExpression += `#${key} ${operator} ${expressionKey} and `;
+        if (key == 'SK_PREFIX') {
+          keyConditionExpression += `begins_with(SK, :${key}) and `;
+        } else {
+          keyConditionExpression += `#${key} ${operator} ${expressionKey} and `;
+          expressionAttributeNames[`#${expressionName}`] = key;
+        }
         expressionAttributeValues[expressionKey] = operand;
-        expressionAttributeNames[`#${expressionName}`] = key;
       } else {
         // Handle direct equality
-        keyConditionExpression += `#${key} = ${expressionKey} and `;
+        if (key == 'SK_PREFIX') {
+          keyConditionExpression += `begins_with(SK, :${key}) and `;
+        } else {
+          keyConditionExpression += `#${key} = ${expressionKey} and `;
+          expressionAttributeNames[`#${expressionName}`] = key;
+        }
         expressionAttributeValues[expressionKey] = value;
-        expressionAttributeNames[`#${expressionName}`] = key;
       }
     }
     // Remove the last ' and '

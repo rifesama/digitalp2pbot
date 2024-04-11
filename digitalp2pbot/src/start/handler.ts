@@ -3,7 +3,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { StatusCodes } from 'http-status-codes';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { User } from './user';
-import logger from './logger';
+import {logger} from 'digitalp2pbot-utils';
 import { error } from 'console';
 
 const client = new DynamoDBClient({
