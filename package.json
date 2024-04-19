@@ -1,10 +1,11 @@
 {
-    "scripts": {
-        "deploy:digitalp2pbot-utils": "cd digitalp2pbot-utils && npm i && npm run build && npm run deploy",
-        "deploy:bot": "cd digitalp2pbot && npm i && npm run deploy",
-        "deploy": "npm-run-all --sequential deploy:digitalp2pbot-utils deploy:bot"
-    },
-    "devDependencies": {
-        "npm-run-all": "^4.1.5"
-    }
+  "scripts": {
+    "deploy:digitalp2pbot-commons": "cd digitalp2pbot-commons && npm i && npm run build && npm test && npm run deploy",
+    "deploy:digitalp2pbot-utils": "cd digitalp2pbot-utils && npm i && npm run build && npm test && npm run deploy",
+    "deploy:bot": "cd digitalp2pbot && npm i && npm test && npm run deploy",
+    "deploy": "npm-run-all --sequential deploy:digitalp2pbot-utils  deploy:digitalp2pbot-commons deploy:bot"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
 }

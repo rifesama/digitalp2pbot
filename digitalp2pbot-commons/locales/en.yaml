@@ -1,0 +1,37 @@
+start: |
+  ---———— DISCLAIMER ————---
+
+  ${disclaimer}
+  ---———— DISCLAIMER ————---
+
+  This bot will help you complete P2P Bitcoin transactions through the Lightning Network (LN).
+
+  Once you start up the bot, you can use the following commands:
+
+  1. Publish your order using the /buy or /sell command and follow the instructions.
+
+  2. Wait for another user to pick your request using the "Buy" or "Sell" buttons. You can also pick other users' orders with these buttons!
+
+  3. Your orders and reputation are visible in the ${channel} channel.
+
+  4. If you are selling, the bot will publish the order in the ${channel} channel expecting another user will take it. You can cancel this sell order anytime BEFORE another user takes it with the /cancel command.
+
+  5. Once somebody takes your order, the bot will ask you to pay the LN invoice. Such payment will be held in an escrow that is frozen in your wallet, the order will expire in a maximum lapse of ${orderExpiration} hours starting when the order was taken.
+
+  The bot will reveal who the buyer is so you can send instructions for the FIAT payment to be made. Once you receive the FIAT payment, you must send the funds to the buyer using the /release command.
+
+  6. If you want to buy, publish your order using the /buy command and wait until a seller takes it. You can cancel the order at any time by using the /cancel command.
+
+  7. Once somebody takes your buy order, you must create a LN invoice and send it to the bot. After that, you need to contact your seller to get your FIAT payment instructions. Once you have paid the seller, you should use the /release command. The bot will send you the sats to your LN invoice.
+
+  8. If you are taking a selling order, i.e. you buy sats, you must create a LN invoice to get your sats and ask the seller to give you the FIAT payment instructions. Once the seller receives the fiat payment he shall use the /release command to have the sats sent to your wallet.
+
+  9. If you are taking a buy order, i.e. you sell sats, you must pay the LN invoice. These sats will be held until the buyer makes the fiat payment. You must contact the buyer and give him the info needed to proceed with the fiat payment. Once you receive the fiat payment, you must release the fund held by the bot; you must use the /release command, and the sats will be automatically sent to the buyer's wallet.
+
+  You can find more information on how to use this bot here 👇
+
+  https://lnp2pbot.com/learn
+
+  Make a quick and safe transaction!
+init_bot_error: to use this bot, you need to first initialize the boot with the command /start
+non_handle_error: 👤 To use this bot, you need to activate your Telegram Username. To activate it open the hamburger menu on the top left and select settings -> edit profile -> username

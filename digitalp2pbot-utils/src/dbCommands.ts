@@ -8,9 +8,10 @@ import {
   DeleteCommand,
   DeleteCommandOutput,
   QueryCommandInput,
-} from '@aws-sdk/lib-dynamodb';
-import { DatabaseError, InvalidQueryParamsError } from './customError';
-import exp from 'constants';
+  UpdateCommandInput,
+} from "@aws-sdk/lib-dynamodb";
+import { DatabaseError, InvalidQueryParamsError } from "./customError";
+import exp from "constants";
 
 type QueryType = Record<string, any>;
 
@@ -36,7 +37,6 @@ export enum DynamoDBResponseCode {
   Ok = 200,
 }
 export class DynamoCommands {
-  #collectionKeyName: string = 'Id';
   private dbClient: DynamoDBDocumentClient;
   public collection: string;
   constructor(dbClient: DynamoDBDocumentClient, collection: string) {
@@ -44,9 +44,12 @@ export class DynamoCommands {
     this.collection = collection;
   }
   getKeySchemas(): string[] {
-    return ['PK', 'SK', 'SK_PREFIX'];
+    return ["PK", "SK", "SK_PREFIX"];
   }
-  getKeyExpression(filter: QueryType): {
+  getKeyExpression(
+    filter: QueryType,
+    deleteKeyFromFilter: boolean = true,
+  ): {
     filter: Record<string, any>;
     keyExpression: Record<string, any>;
   } {
@@ -55,7 +58,7 @@ export class DynamoCommands {
       (acc, field) => {
         if (queryCopy.hasOwnProperty(field)) {
           acc[field] = filter[field];
-          delete filter[field];
+          if (deleteKeyFromFilter) delete filter[field];
         }
         return acc;
       },
@@ -63,7 +66,9 @@ export class DynamoCommands {
     );
     return { filter, keyExpression };
   }
-  async putCommand(data: Record<string, any>): Promise<Record<string, any> | undefined> {
+  async putCommand(
+    data: Record<string, any>,
+  ): Promise<Record<string, any> | undefined> {
     try {
       const command = new PutCommand({
         TableName: this.collection,
@@ -82,8 +87,36 @@ export class DynamoCommands {
       throw new DatabaseError(err);
     }
   }
+
+  /**
+   *
+   * @param Data to save on tb
+   * @returns return the doc created or updated
+   */
+  async updateCommand(
+    data: Record<string, any>,
+  ): Promise<Record<string, any> | undefined> {
+    try {
+      const { keyExpression } = this.getKeyExpression(data);
+      const { expressionAttributeNames, expressionAttributeValues } =
+        this.buildQueryExpression({}, data);
+
+      const params: UpdateCommandInput = {
+        Key: keyExpression,
+        UpdateExpression: this.generateUpdateExpression(data),
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+        TableName: this.collection,
+        ReturnValues: "ALL_NEW",
+      };
+      const item = await this.dbClient.send(new UpdateCommand(params));
+      return item.Attributes;
+    } catch (err: any) {
+      throw new DatabaseError(err);
+    }
+  }
   async deleteCommand(key: Record<string, any>): Promise<DeleteCommandOutput> {
-    if (Object.keys(key).length <= 0) throw new InvalidQueryParamsError('key');
+    if (Object.keys(key).length <= 0) throw new InvalidQueryParamsError("key");
     const params = {
       TableName: this.collection,
       Key: key,
@@ -99,9 +132,13 @@ export class DynamoCommands {
     query: Record<string, any>,
     fields: string[] = [],
   ): Promise<Record<string, any> | undefined> {
-    if (Object.keys(query).length <= 0) throw new InvalidQueryParamsError('query');
+    if (Object.keys(query).length <= 0)
+      throw new InvalidQueryParamsError("query");
     try {
-      const params: DynamoDBGetCommandParams = { TableName: this.collection, Key: query };
+      const params: DynamoDBGetCommandParams = {
+        TableName: this.collection,
+        Key: query,
+      };
       if (fields.length > 0) {
         const { projectionExpression, expressionAttributeNames } =
           this.convertFieldsToDynamoExpression(fields);
@@ -119,13 +156,13 @@ export class DynamoCommands {
     projectionExpression: string;
     expressionAttributeNames: Record<string, any>;
   } {
-    let projectionExpression = '';
+    let projectionExpression = "";
     const expressionAttributeNames: Record<string, string> = {};
 
     fields.forEach((field, index) => {
       const placeholder = `#${field}`;
 
-      projectionExpression += `${index > 0 ? ', ' : ''}${placeholder}`;
+      projectionExpression += `${index > 0 ? ", " : ""}${placeholder}`;
       expressionAttributeNames[placeholder] = field;
     });
 
@@ -137,7 +174,10 @@ export class DynamoCommands {
     projectionExpression: string[],
     limit: number,
     sort: Record<string, any>,
-  ): Promise<{ Items: Record<string, any>[]; LastEvaluatedKey: Record<string, any> | undefined }> {
+  ): Promise<{
+    Items: Record<string, any>[];
+    LastEvaluatedKey: Record<string, any> | undefined;
+  }> {
     try {
       const { filter, keyExpression } = this.getKeyExpression(query);
       const {
@@ -164,7 +204,7 @@ export class DynamoCommands {
         params.FilterExpression = filterExpression;
       }
       if (projectionExpression.length > 0) {
-        params.ProjectionExpression = projectionExpression.join(',');
+        params.ProjectionExpression = projectionExpression.join(",");
       }
       if (sort && !keyConditionExpression) {
         params.IndexName = Object.keys(sort)[0];
@@ -173,10 +213,14 @@ export class DynamoCommands {
         //}
       }
       if (keyConditionExpression) {
-        const { Items, LastEvaluatedKey } = await this.dbClient.send(new QueryCommand(params));
+        const { Items, LastEvaluatedKey } = await this.dbClient.send(
+          new QueryCommand(params),
+        );
         return { Items: Items ?? [], LastEvaluatedKey };
       } else {
-        const { Items, LastEvaluatedKey } = await this.dbClient.send(new ScanCommand(params));
+        const { Items, LastEvaluatedKey } = await this.dbClient.send(
+          new ScanCommand(params),
+        );
         return { Items: Items ?? [], LastEvaluatedKey };
       }
     } catch (err: any) {
@@ -195,7 +239,7 @@ export class DynamoCommands {
       } = this.buildQueryExpression(filter, keyExpression);
       const params: QueryCommandInput = {
         TableName: this.collection,
-        Select: 'COUNT',
+        Select: "COUNT",
       };
       if (Object.keys(expressionAttributeNames).length > 0) {
         params.ExpressionAttributeNames = expressionAttributeNames;
@@ -229,8 +273,8 @@ export class DynamoCommands {
     expressionAttributeNames: Record<string, any>;
     expressionAttributeValues: Record<string, any>;
   } {
-    let keyConditionExpression = '';
-    let filterExpression = '';
+    let keyConditionExpression = "";
+    let filterExpression = "";
     const expressionAttributeValues: Record<string, any> = {};
     const expressionAttributeNames: Record<string, any> = {};
 
@@ -238,7 +282,11 @@ export class DynamoCommands {
       const expressionKey = `:${key}`;
       const expressionName = `${key}`;
 
-      if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        Object.keys(value).length > 0
+      ) {
         // Handle comparison operators
         const operator = Object.keys(value)[0];
         const operand = value[operator];
@@ -256,11 +304,15 @@ export class DynamoCommands {
       const expressionKey = `:${key}`;
       const expressionName = `${key}`;
 
-      if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        Object.keys(value).length > 0
+      ) {
         // Handle comparison operators
         const operator = Object.keys(value)[0];
         const operand = value[operator];
-        if (key == 'SK_PREFIX') {
+        if (key == "SK_PREFIX") {
           keyConditionExpression += `begins_with(SK, :${key}) and `;
         } else {
           keyConditionExpression += `#${key} ${operator} ${expressionKey} and `;
@@ -268,14 +320,16 @@ export class DynamoCommands {
         }
         expressionAttributeValues[expressionKey] = operand;
       } else {
-        // Handle direct equality
-        if (key == 'SK_PREFIX') {
-          keyConditionExpression += `begins_with(SK, :${key}) and `;
-        } else {
-          keyConditionExpression += `#${key} = ${expressionKey} and `;
-          expressionAttributeNames[`#${expressionName}`] = key;
+        if (value !== undefined) {
+          // Handle direct equality
+          if (key == "SK_PREFIX") {
+            keyConditionExpression += `begins_with(SK, :${key}) and `;
+          } else {
+            keyConditionExpression += `#${key} = ${expressionKey} and `;
+            expressionAttributeNames[`#${expressionName}`] = key;
+          }
+          expressionAttributeValues[expressionKey] = value;
         }
-        expressionAttributeValues[expressionKey] = value;
       }
     }
     // Remove the last ' and '
@@ -287,5 +341,17 @@ export class DynamoCommands {
       expressionAttributeNames,
       expressionAttributeValues,
     };
+  }
+  generateUpdateExpression(updates: Record<string, any>): string {
+    let updateExpressionParts: string[] = [];
+    // Iterate over each key-value pair in the updates object to construct the update expression
+    for (const [key, value] of Object.entries(updates)) {
+      if (value != undefined) {
+        const attributeValuePlaceholder = `:${key}`; // Placeholder for the value
+        updateExpressionParts.push(`#${key} = ${attributeValuePlaceholder}`);
+      }
+    }
+    // Join all parts with ', ' to form the complete update expression
+    return "SET " + updateExpressionParts.join(", ");
   }
 }

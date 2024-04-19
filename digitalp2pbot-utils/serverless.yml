@@ -6,6 +6,6 @@ provider:
 layers:
   digitalp2pbot-utils:
     compatibleRuntimes:
-      - 'nodejs20.x'
+      - "nodejs20.x"
     package:
       artifact: digitalp2pbot-utils.zip

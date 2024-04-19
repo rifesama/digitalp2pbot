@@ -21,7 +21,9 @@ class ValueNotNullOrUndefinedError extends CustomError {
 
 class StringLengthError extends CustomError {
   constructor(valueName: string, minLength: number, maxLength: number) {
-    super(`${valueName} must be between ${minLength} and ${maxLength} characters long.`);
+    super(
+      `${valueName} must be between ${minLength} and ${maxLength} characters long.`,
+    );
   }
 }
 

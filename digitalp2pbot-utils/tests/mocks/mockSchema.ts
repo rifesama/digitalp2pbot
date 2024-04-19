@@ -1,44 +1,49 @@
 import Ajv, { JTDSchemaType } from "ajv/dist/jtd";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { ItemsService } from "../../src/itemsService";
+import { DynamoDBPrefix } from "../itemsService.spec";
 import {
-    NumberRangeError,
-    ValueGreaterThanZeroError,
+  NumberRangeError,
+  ValueGreaterThanZeroError,
 } from "../../src/customError";
 
 export interface mockSchemaInterface {
-    PK: string;
-    SK: string;
-    name: string;
-    lastName: string;
-    phone: string;
-    address: string;
-    active: boolean;
-    updatedAt?: Date;
-    createdAt?: Date;
+  PK: string;
+  SK: string;
+  name: string;
+  lastName: string;
+  phone: string;
+  address: string;
+  active: boolean;
+  updatedAt?: Date;
+  createdAt?: Date;
 }
 export class MockSchema extends ItemsService {
-    constructor(dbClient: DynamoDBDocumentClient, tableName: string) {
-        super(dbClient, tableName);
-    }
+  constructor(dbClient: DynamoDBDocumentClient, tableName: string) {
+    super(dbClient, tableName);
+  }
 
-    async getSchema(): Promise<object> {
-        const schema: JTDSchemaType<mockSchemaInterface> = {
-            properties: {
-                PK: { type: "string" },
-                SK: { type: "string" },
-                name: { type: "string" },
-                lastName: { type: "string" },
-                phone: { type: "string" },
-                address: { type: "string" },
-                active: { type: "boolean" },
-            },
-            optionalProperties: {
-                updatedAt: { type: "timestamp" },
-                createdAt: { type: "timestamp" },
-            },
-            additionalProperties: false,
-        };
-        return schema;
-    }
+  async getSchema(): Promise<object> {
+    const schema: JTDSchemaType<mockSchemaInterface> = {
+      properties: {
+        PK: { type: "string" },
+        SK: { type: "string" },
+        name: { type: "string" },
+        lastName: { type: "string" },
+        phone: { type: "string" },
+        address: { type: "string" },
+        active: { type: "boolean" },
+      },
+      optionalProperties: {
+        updatedAt: { type: "timestamp" },
+        createdAt: { type: "timestamp" },
+      },
+      additionalProperties: false,
+    };
+    return schema;
+  }
+  setKeyExpressions(data: Record<string, any>) {
+    data.PK = data.PK ?? `${DynamoDBPrefix.USER}${data.uuid}`;
+    data.SK = data.SK ?? DynamoDBPrefix.METADATA;
+  }
 }
