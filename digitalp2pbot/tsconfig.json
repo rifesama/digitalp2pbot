@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "outDir": "./dist",
     "target": "es2020",
     "module": "commonjs",
     "preserveConstEnums": true,
@@ -14,9 +13,8 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "digitalp2pbot-utils": ["../digitalp2pbot-utils/src/index.ts"]
+      "digitalp2pbot-utils": ["../digitalp2pbot-utils/src/index.ts"],
+      "digitalp2pbot-commons": ["../digitalp2pbot-commons/index.ts"]
     }
-  },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules"]
+  }
 }

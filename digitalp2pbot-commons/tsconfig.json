@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./digitalp2pbot-utils",
+    "outDir": "./digitalp2pbot-commons",
     "target": "es2020",
     "module": "commonjs",
     "preserveConstEnums": true,
@@ -10,7 +10,16 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "digitalp2pbot-utils": ["../digitalp2pbot-utils/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": [
+    "libs/**/*",
+    "models/**/*",
+    "interfaces/**/*",
+    "index.ts",
+    "locales/**/*"
+  ]
 }

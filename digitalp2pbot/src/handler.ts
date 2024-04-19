@@ -6,7 +6,6 @@ const lambdaClient = new LambdaClient({ region: 'us-east-1' });
 export const main: APIGatewayProxyHandler = async event => {
   const body = JSON.parse(event.body || '{}');
   const command = body.message?.text?.split(' ')[0];
-  console.log('this is the body', body);
 
   let functionName: string;
 

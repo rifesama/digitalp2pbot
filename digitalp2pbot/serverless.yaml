@@ -6,14 +6,19 @@ plugins:
   - serverless-latest-layer-version
   - serverless-offline
 
+useDotenv: true
 provider:
   name: aws
   runtime: nodejs20.x
   region: us-east-1
+  stage: ${opt:stage, 'dev'}
   environment:
-    BOT_TOKEN: ${BOT_TOKEN}
+    NODE_ENV: ${self:provider.stage}
+    BOT_TOKEN: ${env:BOT_TOKEN}
+    TABLE_NAME: ${self:custom.tableName}
   layers:
     - arn:aws:lambda:${aws:region}:${aws:accountId}:layer:digitalp2pbot-utils:latest
+    - arn:aws:lambda:${aws:region}:${aws:accountId}:layer:digitalp2pbot-commons:latest
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -45,6 +50,62 @@ functions:
 
 resources:
   Resources:
+    Digitalp2pbotTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: 'PK'
+            AttributeType: 'S'
+          - AttributeName: 'SK'
+            AttributeType: 'S'
+          - AttributeName: 'createdAt'
+            AttributeType: 'S'
+          - AttributeName: 'updatedAt'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'PK'
+            KeyType: 'HASH'
+          - AttributeName: 'SK'
+            KeyType: 'RANGE'
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: 'createdAt'
+            KeySchema:
+              - AttributeName: 'PK'
+                KeyType: 'HASH'
+              - AttributeName: 'createdAt'
+                KeyType: 'RANGE'
+            Projection:
+              ProjectionType: 'ALL'
+
+          - IndexName: 'updatedAt'
+            KeySchema:
+              - AttributeName: 'PK'
+                KeyType: 'HASH'
+              - AttributeName: 'updatedAt'
+                KeyType: 'RANGE'
+            Projection:
+              ProjectionType: 'ALL'
+
+    DynamoDBPolicy:
+      Type: 'AWS::IAM::ManagedPolicy'
+      Properties:
+        Description: 'Managed policy for accessing DynamoDB'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Scan
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource:
+                - !GetAtt Digitalp2pbotTable.Arn
+
     DigitalP2PBotApiGateway:
       Type: AWS::ApiGateway::RestApi
       Properties:
@@ -55,6 +116,7 @@ resources:
       Properties:
         ManagedPolicyArns:
           - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+          - !Ref DynamoDBPolicy
         Policies:
           - PolicyName: myLambdaPolicy
             PolicyDocument:
@@ -79,7 +141,8 @@ resources:
                   - 's3.amazonaws.com'
 
 custom:
+  tableName: ${self:provider.stage}-digitalp2pbot
   dotenv:
-    path: .env
+    basePath: './'
     include:
-      - BOT_TOKEN
+      - .env.${opt:stage, 'dev'}

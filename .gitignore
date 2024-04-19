@@ -1,9 +1,15 @@
 node_modules/
 __pycache__/
 logs/
-
+digitalp2pbot-utils/digitalp2pbot-utils
+digitalp2pbot-utils/digitalp2pbot-utils.zip
+digitalp2pbot-utils/nodejs
+digitalp2pbot-commons/digitalp2pbot-commons
+digitalp2pbot-commons/digitalp2pbot-commons.zip
+digitalp2pbot-commons/nodejs
 .env
-
+.env.dev
+.env.prod
 client/dist/
 coverage/
 # Logs
@@ -14,6 +20,8 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+combined.log
+error.log
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

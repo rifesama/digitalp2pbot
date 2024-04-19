@@ -20,3 +20,5 @@ getWebHook:
 
 deploy:
 	@npm run deploy
+	@rm -rf digitalp2pbot-utils/nodejs && rm -rf digitalp2pbot-utils/digitalp2pbot-utils 
+	@rm -rf digitalp2pbot-commons/nodejs && rm -rf digitalp2pbot-commons/digitalp2pbot-commons
