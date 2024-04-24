@@ -23,7 +23,7 @@ describe('TestCases for telegram start command', () => {
   before(async () => {
     await i18n.changeLanguage('es');
     client = new DynamoDBClient({
-      region: 'us-east-1',
+      region: process.env.AWS_DEFAULT_REGION,
       endpoint: process.env.DYNAMODB_ENDPOINT,
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
@@ -119,6 +119,7 @@ describe('TestCases for telegram start command', () => {
       null as any,
     )) as APIGatewayProxyResult;
     const body = JSON.parse(result.body);
+    console.log('error', body);
     const command = new GetCommand({
       TableName: collection,
       Key: {

@@ -16,6 +16,9 @@ provider:
     NODE_ENV: ${self:provider.stage}
     BOT_TOKEN: ${env:BOT_TOKEN}
     TABLE_NAME: ${self:custom.tableName}
+    AWS_DEFAULT_REEGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    BOT_FEE: ${env:BOT_FEE}
   layers:
     - arn:aws:lambda:${aws:region}:${aws:accountId}:layer:digitalp2pbot-utils:latest
     - arn:aws:lambda:${aws:region}:${aws:accountId}:layer:digitalp2pbot-commons:latest
@@ -38,12 +41,12 @@ functions:
           method: post
           cors: true
 
-  startCommand:
+  start:
     role: LambdaExecutionRole
     handler: src/start/handler.main
     timeout: 30
 
-  infoCommand:
+  info:
     role: LambdaExecutionRole
     timeout: 30
     handler: src/info/handler.main

@@ -13,44 +13,44 @@ import { DynamoTablePrefix } from "../libs/dynamoConstants";
 import { ValidationError } from "digitalp2pbot-utils";
 
 describe("TestCases for digitalp2pbot users model", () => {
-  let client: DynamoDBClient;
-  let docClient: DynamoDBDocumentClient;
-  const collection: string = process.env.TABLE_NAME as string;
-  before(async () => {
-    await i18n.changeLanguage("es");
-    client = new DynamoDBClient({
-      region: "us-east-1",
-      endpoint: process.env.DYNAMODB_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-      },
+    let client: DynamoDBClient;
+    let docClient: DynamoDBDocumentClient;
+    const collection: string = process.env.TABLE_NAME as string;
+    before(async () => {
+        await i18n.changeLanguage("es");
+        client = new DynamoDBClient({
+            region: process.env.AWS_DEFAULT_REGION,
+            endpoint: process.env.DYNAMODB_ENDPOINT,
+            credentials: {
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+            },
+        });
+        docClient = DynamoDBDocumentClient.from(client);
     });
-    docClient = DynamoDBDocumentClient.from(client);
-  });
 
-  beforeEach(async () => {
-    await createTable(client, collection);
-  });
+    beforeEach(async () => {
+        await createTable(client, collection);
+    });
 
-  afterEach(async () => {
-    await deleteTable(client, collection);
-  });
+    afterEach(async () => {
+        await deleteTable(client, collection);
+    });
 
-  it("should raise error username is required", async () => {
-    const user = new User(docClient, i18n);
-    const payload = {
-      PK: faker.string.uuid(),
-      firstName: faker.person.firstName(),
-    };
-    await assert.rejects(
-      async () => {
-        await user.updateItem(payload);
-      },
-      {
-        name: "ValidationError",
-        message: i18n.t("non_handle_error"),
-      },
-    );
-  });
+    it("should raise error username is required", async () => {
+        const user = new User(docClient, i18n);
+        const payload = {
+            PK: faker.string.uuid(),
+            firstName: faker.person.firstName(),
+        };
+        await assert.rejects(
+            async () => {
+                await user.updateItem(payload);
+            },
+            {
+                name: "ValidationError",
+                message: i18n.t("non_handle_error"),
+            }
+        );
+    });
 });
