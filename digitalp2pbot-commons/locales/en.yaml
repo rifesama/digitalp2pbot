@@ -1,7 +1,8 @@
 start: |
   ---———— DISCLAIMER ————---
 
-  ${disclaimer}
+  {{disclaimer}}
+
   ---———— DISCLAIMER ————---
 
   By using the DigitalP2Pbot, you agree to the following terms and conditions:
@@ -60,3 +61,13 @@ start: |
  
 init_bot_error: to use this bot, you need to first initialize the boot with the command /start
 non_handle_error: 👤 To use this bot, you need to activate your Telegram Username. To activate it open the hamburger menu on the top left and select settings -> edit profile -> username
+bot_info: |
+  Bot fee: {{bot_fee}}
+
+  User info:
+
+  {{user_info}}
+user_info: |
+  Volume traded: {{volume_traded}}
+  Total rating: {{total_rating}}
+  Disputes: {{disputes}}

@@ -32,3 +32,4 @@ npx ts-node scripts/deleteTelegramUsersDBTable.ts
 5. Create later with models and utilities.
 6. Refactor code to have the interface in a file where the nomenclature is correct
 7. Create digitalp2pbot layer
+8. Method get should support field `banned`

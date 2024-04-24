@@ -13,51 +13,51 @@ jobs:
       fail-fast: false
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'  # Specify your Node.js version here
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # Specify your Node.js version here
 
-    - name: Cache Node.js modules
-      uses: actions/cache@v4
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - name: Cache Node.js modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Install and Deploy digitalp2pbot-utils
-      run: |
-        cd digitalp2pbot-utils
-        npm install
-        npm run build
-        npm test
-        npm run deploy
+      - name: Install and Deploy digitalp2pbot-utils
+        run: |
+          cd digitalp2pbot-utils
+          npm install
+          npm run build
+          npm test
+          npm run deploy
 
-    - name: Install and Deploy digitalp2pbot-commons
-      run: |
-        cd digitalp2pbot-commons
-        npm install
-        npm run build
-        npm test
-        npm run deploy
+      - name: Install and Deploy digitalp2pbot-commons
+        run: |
+          cd digitalp2pbot-commons
+          npm install
+          npm run build
+          npm test
+          npm run deploy
 
-    - name: Test and Deploy bot
-      run: |
-        cd digitalp2pbot
-        npm install
-        npm test
-        npm run deploy
+      - name: Test and Deploy bot
+        run: |
+          cd digitalp2pbot
+          npm install
+          npm test
+          npm run deploy
 
-    - name: Clean Up
-      run: echo "Deploy completed successfully."
+      - name: Clean Up
+        run: echo "Deploy completed successfully."
