@@ -3,10 +3,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { StatusCodes } from 'http-status-codes';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { logger } from 'digitalp2pbot-utils';
-import { User, TelegramHandlerEvent } from 'digitalp2pbot-commons';
-import i18next from 'digitalp2pbot-commons';
-
-const defaultRegion = 'us-east-1';
+import i18next, { User, TelegramHandlerEvent } from 'digitalp2pbot-commons';
+const defaultRegion = process.env.AWS_DEFAULT_REGION || 'us-east-1';
 
 // Base configuration for the DB client
 const DBClientParams = {
