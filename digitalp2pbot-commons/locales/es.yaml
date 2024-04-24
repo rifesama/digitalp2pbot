@@ -4,31 +4,60 @@ start: |
   ${disclaimer}
   ---———— DISCLAIMER ————---
 
-  Este bot te ayudará a completar tus intercambios P2P usando Bitcoin vía Lightning Network.
+  Al utilizar DigitalP2Pbot, usted acepta los siguientes términos y condiciones:
 
-  Una vez inicializado el Bot, puedes usar los siguientes comandos:
+  DigitalP2P es un bot de software de código abierto que está disponible para que cualquiera pueda usarlo, copiarlo, modificarlo y ejecutarlo. Los desarrolladores no son responsables de las acciones de otras personas que utilicen el software de cualquier manera, ya sea legal o ilegal, honesta o deshonesta.
+  
+  El bot se proporciona "tal cual" y "según disponibilidad", y los desarrolladores no ofrecen garantías de ningún tipo, expresas o implícitas, con respecto al bot o su uso.
 
-  1. Publica tu oferta de compra o venta por medio de los comandos /buy o /sell y sigue las instrucciones.
+  Los desarrolladores y los solucionadores de disputas hacen sus mejores esfuerzos para eliminar a los malos actores, fraudes y estafas que usan el bot, pero el usuario reconoce que el sistema puede ser explotado y acepta toda la responsabilidad al usarlo.
 
-  2. Espera que otro usuario tome la oferta por medio de los botones "Comprar" ó "Vender". Tambien puedes tomar las ofertas de otros usuarios con estos botones!
+  Ni los desarrolladores ni los solucionadores de disputas son responsables de las pérdidas o daños que el usuario pueda sufrir como resultado del uso del bot.
 
-  3. Tu oferta y calificación estará visible en el canal ${channel}.
 
-  4. Si estas vendiendo el bot publicará la orden en el canal ${channel} esperando a que alguien tome tu venta. Sin embargo puedes cancelarla antes de que otro usuario la tome con el comando /cancel.
+  Este bot le ayudará a completar transacciones P2P.
+  
+  Una vez que inicies el bot, puedes usar los siguientes comandos:
 
-  5. Una vez alguien tome tu venta el bot te pedirá que pagues una factura lightning, el pago a esta factura será retenido, la orden expirará en un tiempo máximo de ${orderExpiration} horas desde el momento que fue tomada, el bot te dirá quién es el comprador para que le brindes tus datos de pago y te envíe el dinero fiat. Luego tu debes liberar los fondos para que le lleguen los sats al invoice del usuario por medio del comando /release
+  1. Publique su orden usando el comando /buy o /sell y siga las instrucciones.
 
-  6. Si estas comprando, solo debes publicar la oferta y esperar que otro usuario la tome. Sin embargo puedes cancelarla antes de que otro usuario la tome con el comando /cancel.
+  2. Espere a que otro usuario tome su orden utilizando los botones "Comprar" o "Vender". ¡También puedes elegir las ordenes de otros usuarios con estos botones!
 
-  7. Una vez alguien tome tu compra debes crear una factura lightning para recibir los sats y enviarsela al bot, luego contacta al vendedor para que te de los datos del pago fiat. El vendedor luego debe liberar los fondos usando el comando /release para que te lleguen los sats a la factura lightning.
+  3. Tus ordenes y reputación son visibles en el canal @digitalP2Pordenes.
 
-  8. Si estas tomando una venta, debes crear una factura lightning para recibir los sats y pedirle al vendedor que te de sus datos de pago fiat. Una vez el vendedor confirme su pago fiat usará el comando /release para liberarte los sats a tu factura.
 
-  9. Si estas tomando una compra, debes pagar la factura lightning, este pago estará retenido mientras el comprador realiza tu pago fiat. Debes contactarle y brindarle tus datos para ello. Una vez confirmes su pago, debes liberar los fondos por medio del comando /release para que le lleguen los sats al comprador.
+  Publicando una orden de venta.
+
+  1. Si estás vendiendo, el bot publicará tu orden de venta en el canal @digitalP2Pordenes esperando que otro usuario la tome. Puede cancelar esta orden de venta en cualquier momento ANTES de que otro usuario la tome con el comando /cancel.
+
+  2. Una vez que alguien tome su orden de venta, el bot le pedirá que envíe los USDT a una dirección proporcionada por el bot. Dicho pago se realizará a un contrato inteligente, el comercio caducará en un lapso máximo de 46 horas a partir de la toma del pedido.
+
+  3. El bot revelará quién es el comprador para que usted pueda enviarle  instrucciones, para que el realice el pago FIAT. Una vez que reciba el pago FIAT, usted debe liberar los fondos al comprador mediante el comando /release.
+
+
+  Publicando una roden de compra.
+
+
+  1. Si deseas comprar, publica tu orden usando el comando /buy y espera hasta que un vendedor tome la orden. Puede cancelar el pedido en cualquier momento utilizando el comando /cancelar.
+
+  2. Una vez que alguien toma su orden de compra, debe enviar su dirección USDT al bot. Después de eso, deberá comunicarse con su vendedor para obtener las instrucciones y realizar el pago en FIAT. Una vez que usted haya pagado al vendedor, debe usar el comando /fiatsent.
+
+  3. Cuando el vendedor confirme que recibió el dinero, procederá a liberar los USDT y el bot te enviará el USDT a tu dirección.
+
+
+  Tomando una orden de venta.
+
+  1. Si está tomando una orden de venta, es decir, comprando USDT, debe enviar tu dirección para obtener sus USDT y pedirle al vendedor que le dé las instrucciones de pago FIAT. Una vez que el vendedor reciba el pago fiduciario, deberá utilizar el comando /release para enviar el USDT a su billetera.
+
+
+  Tomando una orden de compra.
+
+  1. Si está tomando una orden de compra, es decir, está vendiendo USDT, usted debe enviar los USDT a globlabot, estos USDT se mantendrán en un contrato inteligente hasta que el comprador realice el pago fiduciario. Debe comunicarse con el comprador y brindarle la información necesaria para proceder con el pago fiduciario. Una vez que usted reciba el pago fiduciario, debe liberar el fondo retenido por el bot; debe usar el comando /release y el USDT se enviará automáticamente a la billetera del comprador.
+
 
   Puedes encontrar más información sobre como utilizar este bot aquí 👇
 
-  https://lnp2pbot.com/aprende
+  https://t.me/DigitalP2PChat
 
   ¡Intercambia seguro y rápido!
 init_bot_error: Para usar este Bot primero debes inicializar el bot con el comando /start
